@@ -3,5 +3,4 @@ datetime
 bcrypt
 reportlab
 io
-os
 json
