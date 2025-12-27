@@ -1,0 +1,6 @@
+streamlit
+pandas
+bcrypt
+reportlab
+Pillow
+os
