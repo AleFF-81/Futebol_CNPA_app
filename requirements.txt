@@ -1,6 +1,5 @@
 pandas
 datetime
-bcrypt
+passlib[bcrypt]
 reportlab
-io
 json
