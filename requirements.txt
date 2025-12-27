@@ -1,5 +1,8 @@
 streamlit
 pandas
+datetime
 bcrypt
 reportlab
+io
 os
+json
