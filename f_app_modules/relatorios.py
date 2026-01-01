@@ -296,20 +296,19 @@ def gerar_dados_relatorio_geral(ano, JOGADORES, FINANCEIRO):
     saldo_ano_anterior = 0
         
     for apelido3 in FINANCEIRO['mensalidades'].keys():
-        mensalidades_pagas3 = 0
+        mensalidades_pagas_jogador3 = 0
         mensalidades_jogador3 = FINANCEIRO['mensalidades'].get(apelido3, {})
         
         if mensalidades_jogador3 != {}:
             for mes3, info3 in mensalidades_jogador3.items():
+                mensalidade_paga3 = 0
                 if mes3.startswith(ano_anterior):
                     if info3.get('pago'):
-                        mensalidades_pagas3 += info3.get('valor_pago')
-                else:
-                    mensalidades_pagas3 = 0
-        else:
-            mensalidades_pagas3 = 0
+                        mensalidade_paga3 += info3.get('valor_pago')
+                
+                mensalidades_pagas_jogador3 += mensalidade_paga3
         
-        saldo_ano_anterior += mensalidades_pagas3
+        saldo_ano_anterior += mensalidades_pagas_jogador3
         
     # 2. Processar pagamentos de convites(ANO ANTERIOR)
     for responsavel, lista_convites2 in FINANCEIRO['convites'].items():
