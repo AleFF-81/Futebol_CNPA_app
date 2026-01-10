@@ -149,6 +149,17 @@ def gerar_dados_para_lista_global_jogadores(tipo_lista):
 
         if dados.get('mensalista', False):
             info_mensalidade = FINANCEIRO['mensalidades'].get(apelido, {}).get(mes_atual, {})
+            
+            if not info_mensalidade:
+                mensalidade_atual = FINANCEIRO['config']['mensalidade_atual']
+                valor_devido = 0.0 if dados['posicao'] == 'Goleiro' else mensalidade_atual
+                FINANCEIRO['mensalidades'][apelido][mes_atual] = {
+                    "pago": False,
+                    "valor_devido": valor_devido,
+                    "data_pagamento": None
+                    }
+                salvar_dados(FINANCEIRO, arquivo_financeiro)
+            
             if info_mensalidade:
                 status = f"PAGO ({mes_atual})" if info_mensalidade.get('pago') else f"DEVEDOR R$ {info_mensalidade.get('valor_devido', 0.0):.2f}"
             else:

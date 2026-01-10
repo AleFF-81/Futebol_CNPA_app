@@ -4,6 +4,8 @@ import pandas as pd
 from f_app_modules.jogadores import gerar_dados_para_lista_global_jogadores
 from f_app_modules.salvar_dados import salvar_dados
 from f_app_modules.variaveis_arquivo import variaveis
+from f_app_modules.datas import gerar_ano_anterior
+from f_app_modules.pagamentos import calcular_saldo_ano_anterior
 
 arquivo_jogadores, b, arquivo_sumulas, d = variaveis()
 
@@ -13,6 +15,8 @@ def calcular_geral_ui():
     st.subheader(f"💰 Balanço Financeiro - {ano}")
     FINANCEIRO = st.session_state['financeiro']
     JOGADORES = st.session_state['jogadores']
+    saldo_ano_anterior = calcular_saldo_ano_anterior(ano)
+    ano_anterior = gerar_ano_anterior(ano)
     
     receitas = 0.0
     despesas = sum(gasto['valor'] for gasto in FINANCEIRO['gastos_comuns'] if gasto['data'].startswith(ano))
@@ -36,15 +40,18 @@ def calcular_geral_ui():
     
     saldo = receitas - despesas
     
-    col_1, col_2, col_sld = st.columns(3)
+    col_1, col_2, col_3, col_sld = st.columns(4)
     with col_1:
         st.metric(("Mensalidade atual:"), f"R$ {FINANCEIRO['config']['mensalidade_atual']:.2f}")
         st.metric(("Convite atual:"), f"R$ {FINANCEIRO['config']['valor_convite_atual']:.2f}")
     with col_2:
-        st.metric("Total Receitas (Mensalidades e convites pagos)", f"R$ {receitas:.2f}")
+        st.metric("Total Receitas (Mensalidades e convites)", f"R$ {receitas:.2f}")
         st.metric("Total Despesas (Gastos Comuns)", f"R$ {despesas:.2f}")
+    with col_3:
+        st.metric(f"SALDO - {ano}:\n", f"R$ {saldo:.2f}")
+        st.metric(f"SALDO - {ano_anterior}:\n", f"R$ {saldo_ano_anterior:.2f}")
     with col_sld:
-        st.metric("📊 SALDO FINAL:\n", f"R$ {saldo:.2f}")
+        st.metric("📊 SALDO FINAL:\n", f"R$ {(saldo + saldo_ano_anterior):.2f}")
     
     st.markdown('---')
         

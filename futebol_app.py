@@ -144,7 +144,7 @@ def main_app():
         with col_usu:
             st.image('imgs/usuario.png')
         with col_bv:
-            st.markdown(f' ***{usuario}***')   
+            st.markdown(f'***{usuario}***')   
             
     
     menu_selecionado = st.sidebar.radio(

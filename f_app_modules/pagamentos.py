@@ -3,6 +3,7 @@ import pandas as pd
 from datetime import datetime
 from f_app_modules.variaveis_arquivo import variaveis
 from f_app_modules.salvar_dados import salvar_dados
+from f_app_modules.datas import gerar_ano_anterior
 
 a, arquivo_financeiro, c, d = variaveis()
 
@@ -178,3 +179,47 @@ def registrar_pagamento_convite_ui():
     if dados_tabela:
         df_pendentes = pd.DataFrame(dados_tabela)
         st.dataframe(df_pendentes, hide_index=True, use_container_width=True)
+
+def calcular_saldo_ano_anterior(ano):
+    FINANCEIRO = st.session_state['financeiro']
+    
+    ano_anterior = gerar_ano_anterior(ano)
+    saldo_ano_anterior = 0
+        
+    for apelido3 in FINANCEIRO['mensalidades'].keys():
+        mensalidades_pagas_jogador3 = 0
+        mensalidades_jogador3 = FINANCEIRO['mensalidades'].get(apelido3, {})
+        
+        if mensalidades_jogador3 != {}:
+            for mes3, info3 in mensalidades_jogador3.items():
+                mensalidade_paga3 = 0
+                if mes3.startswith(ano_anterior):
+                    if info3.get('pago'):
+                        mensalidade_paga3 += info3.get('valor_pago')
+                
+                mensalidades_pagas_jogador3 += mensalidade_paga3
+        
+        saldo_ano_anterior += mensalidades_pagas_jogador3
+        
+    # 2. Processar pagamentos de convites(ANO ANTERIOR)
+    for responsavel, lista_convites2 in FINANCEIRO['convites'].items():
+        for convite2 in lista_convites2:     
+            convites_pagos = 0
+            if convite2['data_jogo'].startswith(ano_anterior) and convite2['pago']:
+                    convites_pagos =+ convite2['valor_cobrado']
+            else:
+                convites_pagos = 0
+        
+        saldo_ano_anterior += convites_pagos
+    
+    # 3. Processar gastos do (ANO ANTERIOR)
+    for gastos2 in FINANCEIRO['gastos_comuns']:
+        gasto_ano_anterior = 0
+        if gastos2['data'].startswith(ano_anterior):
+            gasto_ano_anterior += gastos2['valor']
+        else:
+            gasto_ano_anterior = 0
+    
+        saldo_ano_anterior -= gasto_ano_anterior
+        
+    return saldo_ano_anterior

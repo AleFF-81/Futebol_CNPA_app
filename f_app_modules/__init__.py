@@ -4,7 +4,7 @@ from .datas import converter_data, reverter_data, gerar_ano_anterior
 from .estatistica import calcular_geral_ui, editar_estatisticas_sumula_ui, gerar_estatistica_anual, exibir_estatistica_anual, atualizar_estatisticas_globais
 from .gastos import registrar_gasto_comum_ui, listar_gastos_comuns_ui
 from .jogadores import adicionar_jogador_ui, alterar_dados_jogador_ui, listas_e_qtd_mensalistas_convidados, gerar_dados_para_lista_global_jogadores, listar_jogadores_ui
-from .pagamentos import registrar_pagamento_mensalidade_ui, registrar_pagamento_convite_ui
+from .pagamentos import registrar_pagamento_mensalidade_ui, registrar_pagamento_convite_ui, calcular_saldo_ano_anterior
 from .relatorios import gerar_dados_relatorio_individual, gerar_dados_relatorio_geral, gerar_relatorio_ui, criar_pdf_relatorio
 from .salvar_dados import salvar_dados
 from .sidebar_logo import sidebar_logo

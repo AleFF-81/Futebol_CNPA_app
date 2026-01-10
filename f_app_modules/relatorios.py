@@ -10,6 +10,7 @@ from io import BytesIO
 import os
 from f_app_modules.jogadores import listas_e_qtd_mensalistas_convidados
 from f_app_modules.datas import converter_data, gerar_ano_anterior
+from f_app_modules.pagamentos import calcular_saldo_ano_anterior
 
 
 def gerar_dados_relatorio_individual(apelido, ano, JOGADORES, FINANCEIRO):
@@ -103,7 +104,7 @@ def gerar_dados_relatorio_individual(apelido, ano, JOGADORES, FINANCEIRO):
     return pdf_buffer, dados_tabela, total_pago, total_devido, dados_tabela_gastos, total_gastos, qtd_mensalistas, saldo_ano_anterior
 
 def gerar_dados_relatorio_geral(ano, JOGADORES, FINANCEIRO):
-    """Calcula os dados do relatório geral (Mensalistas, Ex-mensalistas, Convidados e Gastos Comuns) e retorna os dados e o PDF."""
+    """Calcula os dados do relatório geral (Mensalistas, Ex-mensalistas, Convidados, Gastos Comuns e Saldo do ano anterior) e retorna os dados e o PDF."""
     
     dados_mensalistas = []
     dados_ex_mensalistas = []
@@ -164,7 +165,7 @@ def gerar_dados_relatorio_geral(ano, JOGADORES, FINANCEIRO):
             'Posição': dados['posicao'],
             'Última data PG': ultima_data_pag,
             'Pago no ano': f"R$ {pago_anual:.2f}",
-            'Devido Pendente': f"R$ {devido_anual:.2f}"
+            'Pendente': f"R$ {devido_anual:.2f}"
         })
         
     # 2. PROCESSAR EX-MENSALISTAS (Ordenado por Apelido)
@@ -212,7 +213,7 @@ def gerar_dados_relatorio_geral(ano, JOGADORES, FINANCEIRO):
                 'Posição': dados2['posicao'],
                 'Última data PG': ultima_data_pag2,
                 'Pago no ano': f"R$ {pago_anual2:.2f}",
-                'Devido Pendente': f"R$ {devido_anual2:.2f}"
+                'Pendente': f"R$ {devido_anual2:.2f}"
             })
         
     # 3. PROCESSAR CONVIDADOS (Nível separado, Ordenado por Apelido)
@@ -256,7 +257,7 @@ def gerar_dados_relatorio_geral(ano, JOGADORES, FINANCEIRO):
             'Posição': info['posicao'],
             'Última data PG': '-',
             'Pago no ano': f"R$ {info['valor_total_pago']:.2f}",
-            'Devido Pendente': f"R$ {info['valor_total_pendente']:.2f}"
+            'Pendente': f"R$ {info['valor_total_pendente']:.2f}"
         })
     
     # Gera os dados dos gastos
@@ -278,59 +279,18 @@ def gerar_dados_relatorio_geral(ano, JOGADORES, FINANCEIRO):
     # 3. Geração do PDF e Retorno
     
     dados_tabela = [
-        {'Apelido': '--- MENSALISTAS ---', 'Posição': '', 'Pago no ano': '', 'Devido Pendente': '', 'Última data PG': ''}
+        {'Apelido': '--- MENSALISTAS ---', 'Posição': '', 'Pago no ano': '', 'Pendente': '', 'Última data PG': ''}
     ] + dados_mensalistas + [
-        {'Apelido': '--- EX-MENSALISTAS ---', 'Posição': '', 'Pago no ano': '', 'Devido Pendente': '', 'Última data PG': ''}
+        {'Apelido': '--- EX-MENSALISTAS ---', 'Posição': '', 'Pago no ano': '', 'Pendente': '', 'Última data PG': ''}
     ] + dados_ex_mensalistas + [
-        {'Apelido': '--- CONVIDADOS ---', 'Posição': '', 'Pago no ano': '', 'Devido Pendente': '', 'Última data PG': ''}
+        {'Apelido': '--- CONVIDADOS ---', 'Posição': '', 'Pago no ano': '', 'Pendente': '', 'Última data PG': ''}
     ] + dados_convidados
 
     total_recebido_geral = total_recebido_mensalistas + total_recebido_ex_mensalistas + total_recebido_convidados
     total_pendente_geral = total_pendente_mensalistas + total_pendente_ex_mensalistas
     
     ## PROCESSAR SALDO ANO ANTERIOR
-    
-    # 1. Processar pagamentos de mensalidades (ANO ANTERIOR)
-    
-    ano_anterior = gerar_ano_anterior(ano)
-    saldo_ano_anterior = 0
-        
-    for apelido3 in FINANCEIRO['mensalidades'].keys():
-        mensalidades_pagas_jogador3 = 0
-        mensalidades_jogador3 = FINANCEIRO['mensalidades'].get(apelido3, {})
-        
-        if mensalidades_jogador3 != {}:
-            for mes3, info3 in mensalidades_jogador3.items():
-                mensalidade_paga3 = 0
-                if mes3.startswith(ano_anterior):
-                    if info3.get('pago'):
-                        mensalidade_paga3 += info3.get('valor_pago')
-                
-                mensalidades_pagas_jogador3 += mensalidade_paga3
-        
-        saldo_ano_anterior += mensalidades_pagas_jogador3
-        
-    # 2. Processar pagamentos de convites(ANO ANTERIOR)
-    for responsavel, lista_convites2 in FINANCEIRO['convites'].items():
-        for convite2 in lista_convites2:
-            
-            convites_pagos = 0
-            if convite2['data_jogo'].startswith(ano_anterior) and convite2['pago']:
-                    convites_pagos =+ convite2['valor_cobrado']
-            else:
-                convites_pagos = 0
-        
-        saldo_ano_anterior += convites_pagos
-    
-    # 3. Processar pagamentos do (ANO ANTERIOR)
-    for gastos2 in FINANCEIRO['gastos_comuns']:
-        gasto_ano_anterior = 0
-        if gastos2['data'].startswith(ano_anterior):
-            gasto_ano_anterior += gastos2['valor']
-        else:
-            gasto_ano_anterior = 0
-    
-        saldo_ano_anterior -= gasto_ano_anterior
+    saldo_ano_anterior = calcular_saldo_ano_anterior(ano)
 
     if not dados_tabela:
         return None, None, 0.0, 0.0
@@ -343,13 +303,16 @@ def gerar_dados_relatorio_geral(ano, JOGADORES, FINANCEIRO):
 
 def gerar_relatorio_ui():
 
-    """Gera relatórios individuais e gerais anuais com opção de exportação em PDF."""
-    st.header("📈 Relatórios Anuais de Pagamento")
+    """Gera relatórios individuais e gerais anuais com opção de exportação em PDF."""        
+    st.header("📈 Relatórios Financeiros")
+    
+    if 'rel_ready' not in st.session_state: st.session_state['rel_ready'] = None
     
     JOGADORES = st.session_state['jogadores']
     FINANCEIRO = st.session_state['financeiro']
+    data_hora = str(datetime.now().strftime('%d%m%Y%H%M%S'))
     
-    # Colunas para organizar as opções
+    # Colunas para organizar as opções de Relatórios Individuais e Gerais
     col1, col2 = st.columns(2)
     
     with col1:
@@ -357,69 +320,114 @@ def gerar_relatorio_ui():
         apelido = st.selectbox("Selecione o jogador:", [''] + sorted([k for k, v in JOGADORES.items()]), key="rel_ind_apelido")
         ano_ind = st.text_input("Ano (AAAA):", value=str(datetime.now().year), key="rel_ind_ano")
         
-        if st.button("Gerar Individual", key='btn_gerar_ind'):
+        if st.button("Criar Relatório Individual", key='btn_gerar_ind'):
+            
+            # Limpeza do estado do Relatório Geral
+            st.session_state['rel_ready'] = 'individual'
+            if 'rel_geral_dados' in st.session_state:
+                del st.session_state['rel_geral_dados']
+            
             if not apelido:
+                st.session_state['rel_ready'] = None
                 st.error('O campo apelido não pode ficar vazio')
             
-            if apelido and ano_ind:
+            else:
                 # Chama a função de geração de dados e recebe os resultados
                 pdf_buffer, dados_tabela, total_pago, total_devido, dados_tabela_gastos, total_gastos, qtd_mensalistas, saldo_ano_anterior = gerar_dados_relatorio_individual(apelido, ano_ind, JOGADORES, FINANCEIRO)
                 
+                # Se houver dados, salva no Session State
                 if len(dados_tabela) > 2:
-                    st.success(f'Relatório de {ano_ind} para {apelido.upper()} gerado com sucesso!')
-                    
-                    # Botão de download
-                    st.download_button(
-                        label="Exportar para PDF",
-                        data=pdf_buffer,
-                        file_name=f"Relatorio_Individual_{apelido}_{ano_ind}.pdf",
-                        mime="application/pdf"
-                    )
-                    
-                    # Apresenta os dados na tela (opcional, mas bom para visualização)
-                    df = pd.DataFrame(dados_tabela)
-                    st.dataframe(df, use_container_width=True, hide_index=True)
-                    st.markdown(f"**Resumo Anual** - Total Pago: R$ {total_pago:.2f} | Total Devido Pendente: R$ {total_devido:.2f}")
+                    st.session_state['rel_ind_dados'] = {
+                        'buffer': pdf_buffer,
+                        'tabela': dados_tabela,
+                        'total_pg': total_pago,
+                        'total_dev': total_devido,
+                        'nome_arq': f"Relatorio_{apelido}_{ano_ind}_{data_hora}.pdf",
+                        'mensagem': f'Relatório {ano_ind} para {apelido.upper()} gerado com sucesso!'
+                    }
+                
                 else:
+                    st.session_state['rel_ready'] = None
                     st.info("Nenhum dado encontrado para este relatório.")
+                    
+        if st.session_state['rel_ready'] == 'individual':
+            dados_ind = st.session_state['rel_ind_dados']
+            st.success(dados_ind['mensagem'])
+            # Botão de download
+            st.download_button(
+                label="Exportar para PDF",
+                data=dados_ind['buffer'],
+                file_name=dados_ind['nome_arq'],
+                mime="application/pdf"
+            )
+            
+            # Apresenta os dados na tela, caso haja
+            st.dataframe(pd.DataFrame(dados_ind['tabela']), use_container_width=True, hide_index=True)
+            st.markdown(f"**Resumo Anual** - Total Pago: R$ {dados_ind['total_pg']:.2f} | Total Devido Pendente: R$ {dados_ind['total_dev']:.2f}")
 
     with col2:
         st.subheader("Relatório Geral")
         ano_geral = st.text_input("Ano (AAAA):", value=str(datetime.now().year), key="rel_geral_ano")
-        ano_anterior = gerar_ano_anterior(ano_geral)
-        
-        if st.button("Gerar Geral", key='btn_gerar_geral'):
-            if ano_geral:
-                # Chama a função de geração de dados e recebe os resultados
-                pdf_buffer, dados_tabela, total_recebido_geral, total_pendente_geral, dados_tabela_gastos, total_gastos, qtd_mensalistas, saldo_ano_anterior = gerar_dados_relatorio_geral(ano_geral, JOGADORES, FINANCEIRO)
+        ano_anterior = ''
                 
-                if dados_tabela:
-                    st.success(f'Relatório de {ano_geral} gerado com sucesso!')
-                    df = pd.DataFrame(dados_tabela)
+        if st.button("Criar Relatório Geral", key='btn_gerar_geral'):
+            if not ano_geral:
+                st.warning('Insira uma ano (AAAA) para gerar um relatório')
+                st.session_state['rel_ready'] = None
+            else:
+                ano_anterior = gerar_ano_anterior(ano_geral)   
+                # Limpeza do estado do Relatório Individual
+                st.session_state['rel_ready'] = 'geral'
+                if 'rel_ind_dados' in st.session_state:
+                    del st.session_state['rel_ind_dados']
+                
+                if ano_geral:
+                    # Chama a função de geração de dados e recebe os resultados
+                    pdf_buffer, dados_tabela, total_recebido_geral, total_pendente_geral, dados_tabela_gastos, total_gastos, qtd_mensalistas, saldo_ano_anterior = gerar_dados_relatorio_geral(ano_geral, JOGADORES, FINANCEIRO)
                     
-                    # Apresenta os dados na tela           
-                    col_qtd, col_btn = st.columns(2)
-                    with col_qtd:
-                        st.markdown(f'Quantidade de mensalistas: {qtd_mensalistas}')    
-                    with col_btn:
-                        # Botão de download
-                        st.download_button(
-                        label="Exportar para PDF",
-                        data=pdf_buffer,
-                        file_name=f"Relatorio_Geral_{ano_geral}.pdf",
-                        mime="application/pdf"
-                        )
-                    saldo = total_recebido_geral - total_gastos
+                    if dados_tabela:
+                        st.session_state['rel_geral_dados'] = {
+                            'buffer2': pdf_buffer,
+                            'tabela2': dados_tabela,
+                            'total_rec_geral': total_recebido_geral,
+                            'total_pend_geral': total_pendente_geral,
+                            'gastos': total_gastos,
+                            'mensalistas': qtd_mensalistas,
+                            'saldo': total_recebido_geral - total_gastos,
+                            'saldo_ano_anterior': saldo_ano_anterior,
+                            'mensagem2': f'Relatório de {ano_geral} gerado com sucesso!',
+                            'nome_arq2': f"Relatorio_Geral_{ano_geral}_{data_hora}.pdf"
+                        }
                     
-                    st.markdown(f"**Resumo Financeiro de {ano_geral}:**")
-                    st.markdown(f'Saldo do ano anterior ({ano_anterior}): R$ {saldo_ano_anterior:.2f}')
-                    st.markdown(f'Total Recebido: R$ {total_recebido_geral:.2f} - Total Pendente: R$ {total_pendente_geral:.2f}')
-                    st.markdown(f'Total Gasto: R$ {total_gastos:.2f} - Saldo ({ano_geral}): R$ {saldo:.2f}')
-                    st.markdown(f'Saldo efetivo: R$ {(saldo_ano_anterior + saldo):.2f}')
-                    st.dataframe(df, use_container_width=True, hide_index=True)
-                else:
-                    st.info("Nenhum dado encontrado para este relatório.")
-
+                    else:
+                        st.info("Nenhum dado encontrado para este relatório.")
+                        st.session_state['rel_ready'] = None
+                    
+        if st.session_state['rel_ready'] == 'geral':
+            dados_geral = st.session_state['rel_geral_dados']
+            
+            st.success(dados_geral['mensagem2'])
+            
+            # Apresenta os dados na tela           
+            col_qtd, col_btn = st.columns(2)
+            with col_qtd:
+                st.markdown(f"Quantidade de mensalistas: {dados_geral['mensalistas']}")    
+            with col_btn:
+                # Botão de download
+                st.download_button(
+                    label="Exportar para PDF",
+                    data=dados_geral['buffer2'],
+                    file_name=dados_geral['nome_arq2'],
+                    mime="application/pdf"
+                )
+            
+            st.markdown(f"**Resumo Financeiro de {ano_geral}:**")
+            st.markdown(f"Saldo do ano anterior ({ano_anterior}): R$ {dados_geral['saldo_ano_anterior']:.2f}")
+            st.markdown(f"Total Recebido: R$ {dados_geral['total_rec_geral']:.2f} - Total Pendente: R$ {dados_geral['total_pend_geral']:.2f}")
+            st.markdown(f"Total Gasto: R$ {dados_geral['gastos']:.2f} - Saldo ({ano_geral}): R$ {dados_geral['saldo']:.2f}")
+            st.markdown(f"Saldo efetivo: R$ {(dados_geral['saldo_ano_anterior'] + dados_geral['saldo']):.2f}")
+            st.dataframe(pd.DataFrame(dados_geral['tabela2']), use_container_width=True, hide_index=True)
+            
 def criar_pdf_relatorio(titulo, dados_tabela, total_pago, total_pendente, tipo_relatorio, dados_tabela_gastos, total_gastos, qtd_mensalistas, saldo_ano_anterior):
     """Gera um PDF em memória (BytesIO) com os dados do relatório."""
     # --- 1. PREPARAR ELEMENTOS DO CABEÇALHO ---
@@ -479,8 +487,8 @@ def criar_pdf_relatorio(titulo, dados_tabela, total_pago, total_pendente, tipo_r
         headers = ['Mês / Data-Jogo', 'Status', 'Devido', 'Pago', 'Data Pagamento']
         data = [headers] + [[d['Mês'], d['Status'], d['Devido'], d['Pago'], d['Data Pagamento']] for d in dados_tabela]
     else: # Geral
-        headers = ['Apelido', 'Posição', 'Pago no Ano', 'Devido Pendente', 'Último pagamento']
-        data = [headers] + [[d['Apelido'], d['Posição'], d['Pago no ano'], d['Devido Pendente'], d['Última data PG']] for d in dados_tabela]
+        headers = ['Jogador', 'Posição', 'Pago no Ano', 'Pendente', 'Último pagamento']
+        data = [headers] + [[d['Apelido'], d['Posição'], d['Pago no ano'], d['Pendente'], d['Última data PG']] for d in dados_tabela]
     
         # Tabela de gastos
         if dados_tabela_gastos != []:
